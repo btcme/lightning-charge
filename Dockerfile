@@ -2,19 +2,27 @@ FROM node:18-slim as builder
 
 ARG STANDALONE
 
-RUN mkdir /opt/local && apt-get update && apt-get install -y --no-install-recommends git gpg dirmngr ca-certificates wget python3 python3-dev  \
+RUN mkdir /opt/local && apt-get update && apt-get install -y --no-install-recommends git gpg dirmngr ca-certificates wget python3 python3-dev  curl \
     $([ -n "$STANDALONE" ] || echo "autoconf automake build-essential ca-certificates curl dirmngr gettext git gnupg libpq-dev libtool libsqlite3-dev  libffi-dev protobuf-compiler python3-mako python3-pip python3-venv python3-setuptools wget net-tools zlib1g-dev libsodium-dev libgmp-dev")
+
+RUN apt-get install -y \
+  jq autoconf automake build-essential git libtool libsqlite3-dev libffi-dev \
+  net-tools zlib1g-dev libsodium-dev gettext \
+  valgrind libpq-dev shellcheck cppcheck \
+  libsecp256k1-dev lowdown cargo rustc rustfmt protobuf-compiler
+
+RUN pip3 install pytest mako grpcio-tools poetry --break-system-packages
 
 ARG TESTRUNNER
 
-# v23.05.2
-ENV LIGHTNINGD_COMMIT=e512f918fcaef276163b185cd712b89335424afd
+# v24.08.2
+ENV LIGHTNINGD_COMMIT=82f4ad68e34a2428c556e63fc2632d48a914968c
 
 RUN [ -n "$STANDALONE" ] || \
     (git clone https://github.com/ElementsProject/lightning.git /opt/lightningd \
     && cd /opt/lightningd \
     && git checkout $LIGHTNINGD_COMMIT \
-    && DEVELOPER=$TESTRUNNER ./configure --prefix=./target \
+    && DEVELOPER=$TESTRUNNER ./configure --prefix=./target --disable-rust \
     && make \
     && make install \
     && rm -r target/share \
